@@ -60,7 +60,7 @@ def center_and_normalize(mesh_dir):
     mesh = trimesh.load(mesh_dir / f"{dims[-1]:03d}.obj", process=False)
     center = (mesh.bounds[0] + mesh.bounds[1]) / 2
     scale = (mesh.bounds[1] - mesh.bounds[0]).max()
-    all_meshes = [x for x in mesh_dir.iterdir() if x.name.endswith('.obj') and x.name != 'model_normalized.obj']
+    all_meshes = [x for x in mesh_dir.iterdir() if x.name.endswith('.obj') and x.name != 'model_normalized.obj' and not x.name.startswith("quad_")]
     for m in all_meshes:
         mesh = trimesh.load(m, process=False)
         mesh.apply_translation(-center)
