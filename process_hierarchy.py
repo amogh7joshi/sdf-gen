@@ -9,7 +9,7 @@ from tqdm import tqdm
 import os
 
 
-dims = [8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 128]
+dims = [8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 128, 144, 160, 176, 192]
 
 paddings = [2, ]
 paddings = paddings + [int(math.ceil(x / dims[0]) * paddings[0]) for x in dims[1:]]
@@ -69,6 +69,17 @@ def center_and_normalize(mesh_dir):
     os.remove(mesh_dir / "material.mtl")
 
 
+def single_df_export(mesh_path):
+    dim = dims[3]
+    res = voxel_resolutions[3]
+    pad = paddings[3]
+    failure_lr = subprocess.call(sdf_gen_cmd(str(mesh_path), str(mesh_path.parent / f"{dim:03d}"), res, pad), shell=True)
+    os.remove(str(mesh_path.parent / f"{dim:03d}") + "_if.npy")
+    df = np.load(str(mesh_path.parent / f"{dim:03d}") + ".npy")
+    df[np.abs(df) > 5 * res] = 5 * res
+    np.save(str(mesh_path.parent / f"{dim:03d}") + ".npy", df)
+
+
 if __name__ == '__main__':
     import argparse
 
@@ -83,3 +94,4 @@ if __name__ == '__main__':
     for f in tqdm(files):
         export_distance_field(f / "model_normalized.obj", True)
         center_and_normalize(f)
+        # single_df_export(f / "model_normalized.obj")
