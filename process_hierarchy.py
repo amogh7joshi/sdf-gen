@@ -9,7 +9,7 @@ from tqdm import tqdm
 import os
 
 
-dims = [8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 128, 144, 160, 176, 192]
+dims = [8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 128, 192, 224, 256, 272]
 
 paddings = [2, ]
 paddings = paddings + [int(math.ceil(x / dims[0]) * paddings[0]) for x in dims[1:]]
@@ -91,6 +91,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     files = sorted([x for x in Path(args.input_folder).iterdir()])
     files = [x for i, x in enumerate(files) if i % args.num_proc == args.proc]
+    #files = [Path("/cluster/gimli/ysiddiqui/CADTextures/Photoshape-model/shapenet-chairs-manifold-highres/shape02349_rank01_pair15882"),
+    #         Path("/cluster/gimli/ysiddiqui/CADTextures/Photoshape-model/shapenet-chairs-manifold-highres/shape02317_rank01_pair35802")]
     for f in tqdm(files):
         export_distance_field(f / "model_normalized.obj", True)
         center_and_normalize(f)
