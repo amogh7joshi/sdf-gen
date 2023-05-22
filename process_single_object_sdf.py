@@ -75,6 +75,7 @@ def center_and_normalize(mesh_dir):
 def quadriflow_executor(*args):
     tmpdir = Path(f'/tmp/{args[0][0]}')
     tmpdir.mkdir(exist_ok=True)
+    cur_dir = os.getcwd()
     shutil.copy2(quadriflow_path, tmpdir / "quadriflow")
     try:
         os.chdir(str(tmpdir))
@@ -88,7 +89,7 @@ def quadriflow_executor(*args):
     except Exception as err:
         print("ERROR:", err)
         Path(args[0][0] + '.txt').write_text(str(err))
-    os.chdir('/tmp')
+    os.chdir(cur_dir)
     shutil.rmtree(tmpdir)
 
 
@@ -102,23 +103,23 @@ def quadriflow_wrapper(input_path):
 
 
 def single_df_export(mesh_path):
-    # dim = dims[-3]
-    # res = voxel_resolutions[-3]
-    # pad = paddings[-3]
-    # failure_lr = subprocess.call(sdf_gen_cmd(str(mesh_path), str(mesh_path.parent / f"{dim:03d}"), res, pad), shell=True)
-    # os.remove(str(mesh_path.parent / f"{dim:03d}") + "_if.npy")
-    # df = np.load(str(mesh_path.parent / f"{dim:03d}") + ".npy")
-    # os.remove(str(mesh_path.parent / f"{dim:03d}") + ".npy")
-    # df[df > 5 * res] = 5 * res
-    # df[df < -5 * res] = -5 * res
-    # vertices, triangles = mc.marching_cubes(df, res * iso(dim))
-    # mc.export_obj(vertices, triangles, mesh_path.parent / f"{dim:03d}_sdf.obj")
-    # mesh = trimesh.load(mesh_path.parent / f"{dim:03d}_sdf.obj", process=False)
-    # center = (mesh.bounds[0] + mesh.bounds[1]) / 2
-    # scale = (mesh.bounds[1] - mesh.bounds[0]).max()
-    # mesh.apply_translation(-center)
-    # mesh.apply_scale(1 / scale)
-    # mesh.export(mesh_path.parent / f"{dim:03d}_sdf.obj")
+    dim = dims[-3]
+    res = voxel_resolutions[-3]
+    pad = paddings[-3]
+    failure_lr = subprocess.call(sdf_gen_cmd(str(mesh_path), str(mesh_path.parent / f"{dim:03d}"), res, pad), shell=True)
+    os.remove(str(mesh_path.parent / f"{dim:03d}") + "_if.npy")
+    df = np.load(str(mesh_path.parent / f"{dim:03d}") + ".npy")
+    os.remove(str(mesh_path.parent / f"{dim:03d}") + ".npy")
+    df[df > 5 * res] = 5 * res
+    df[df < -5 * res] = -5 * res
+    vertices, triangles = mc.marching_cubes(df, res * iso(dim))
+    mc.export_obj(vertices, triangles, mesh_path.parent / f"{dim:03d}_sdf.obj")
+    mesh = trimesh.load(mesh_path.parent / f"{dim:03d}_sdf.obj", process=False)
+    center = (mesh.bounds[0] + mesh.bounds[1]) / 2
+    scale = (mesh.bounds[1] - mesh.bounds[0]).max()
+    mesh.apply_translation(-center)
+    mesh.apply_scale(1 / scale)
+    mesh.export(mesh_path.parent / f"{dim:03d}_sdf.obj")
     quadriflow_wrapper(mesh_path.parent)
     
 
@@ -128,16 +129,16 @@ def single_df_export(mesh_path):
 if __name__ == '__main__':
     import argparse
 
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('-i', '--input_folder', type=str)
-    # parser.add_argument('-n', '--num_proc', default=1, type=int)
-    # parser.add_argument('-p', '--proc', default=0, type=int)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input_folder', type=str)
+    parser.add_argument('-n', '--num_proc', default=1, type=int)
+    parser.add_argument('-p', '--proc', default=0, type=int)
 
-    # args = parser.parse_args()
-    # files = sorted([x for x in Path(args.input_folder).iterdir()])
-    # files = [x for i, x in enumerate(files) if i % args.num_proc == args.proc]
-    files = [Path("/cluster/gimli/ysiddiqui/CADTextures/Photoshape-model/shapenet-chairs-manifold-highres/shape02349_rank01_pair15882"),
-             Path("/cluster/gimli/ysiddiqui/CADTextures/Photoshape-model/shapenet-chairs-manifold-highres/shape02317_rank01_pair35802")]
+    args = parser.parse_args()
+    files = sorted([x for x in Path(args.input_folder).iterdir()])
+    files = [x for i, x in enumerate(files) if i % args.num_proc == args.proc]
+    #files = [Path("/cluster/gimli/ysiddiqui/CADTextures/Photoshape-model/shapenet-chairs-manifold-highres/shape02349_rank01_pair15882"),
+    #         Path("/cluster/gimli/ysiddiqui/CADTextures/Photoshape-model/shapenet-chairs-manifold-highres/shape02317_rank01_pair35802")]
     
     for f in tqdm(files):
         # export_distance_field(f / "model_normalized.obj", True)
