@@ -35,15 +35,12 @@ configure_file(
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/cnpy")
 link_directories("${CMAKE_CURRENT_SOURCE_DIR}/cnpy/lib")
 
-add_executable(${PROJECT_NAME}_shapenet src/main_shapenet.cpp src/makelevelset3.cpp)
 add_executable(${PROJECT_NAME} src/main.cpp src/makelevelset3.cpp)
 
 target_link_libraries(${PROJECT_NAME} cnpy z)
-target_link_libraries(${PROJECT_NAME}_shapenet cnpy z)
 if(VTK_FOUND)
     include(${VTK_USE_FILE})
   target_link_libraries(${PROJECT_NAME} ${VTK_LIBRARIES})
-  target_link_libraries(${PROJECT_NAME}_shapenet ${VTK_LIBRARIES})
 endif()
 
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)

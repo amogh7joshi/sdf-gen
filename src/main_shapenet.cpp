@@ -19,6 +19,8 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <array>
+#include <vector>
 
 int main(int argc, char* argv[]) {
   if (argc != 5) {
@@ -147,8 +149,14 @@ int main(int argc, char* argv[]) {
 
   std::cout << "Computing signed distance field.\n";
   Array3f phi_grid;
-  Array3f theta_grid;
-  make_level_set3(faceList, vertList, idList, min_box, dx, sizes[0], sizes[1], sizes[2], phi_grid, theta_grid);
+
+  // Prepare color collection
+  std::vector<std::array<uint8_t, 3>> active_colors;
+  std::vector<std::array<int, 3>> active_indices;
+  float surface_threshold = dx * 2.0f; // Within 2 voxels of surface
+
+  make_level_set3(faceList, vertList, idList, min_box, dx, sizes[0], sizes[1], sizes[2], phi_grid,
+                 active_colors, active_indices, surface_threshold);
 
   std::string outname;
 

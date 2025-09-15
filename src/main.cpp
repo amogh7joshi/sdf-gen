@@ -19,6 +19,102 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <array>
+#include <vector>
+
+void parse_ply_file(const char* filename, std::vector<Vec3f>& vertList, std::vector<Vec3uc>& colorList,
+                    std::vector<Vec3ui>& faceList, Vec3f& min_box, Vec3f& max_box, int& ignored_lines) {
+  std::ifstream infile(filename);
+  if (!infile) {
+    std::cerr << "Failed to open PLY file. Terminating.\n";
+    exit(-1);
+  }
+
+  std::string line;
+  int vertex_count = 0, face_count = 0;
+
+  std::cout << "Parsing PLY header...\n";
+
+  // Parse header
+  while (std::getline(infile, line)) {
+    if (line.find("element vertex") != std::string::npos) {
+      std::sscanf(line.c_str(), "element vertex %d", &vertex_count);
+    } else if (line.find("element face") != std::string::npos) {
+      std::sscanf(line.c_str(), "element face %d", &face_count);
+    } else if (line == "end_header") {
+      std::cout << "End of header\n";
+      break;
+    }
+  }
+
+  std::cout << "Reading " << vertex_count << " vertices...\n";
+
+  // Read vertices - expecting format: x y z nx ny nz red green blue alpha
+  for (int i = 0; i < vertex_count; i++) {
+    if (!std::getline(infile, line)) {
+      std::cerr << "Error: Unexpected end of file while reading vertices\n";
+      break;
+    }
+    std::istringstream iss(line);
+    Vec3f point;
+    
+    // Read position (x, y, z)
+    iss >> point[0] >> point[1] >> point[2];
+
+    // Skip normals (nx, ny, nz)
+    float nx, ny, nz;
+    iss >> nx >> ny >> nz;
+
+    // Read colors (red, green, blue) and ignore alpha
+    Vec3uc color;
+    int alpha;
+    iss >> color[0] >> color[1] >> color[2] >> alpha;
+    
+    // Encode RGB color
+    colorList.push_back(color);
+    vertList.push_back(point);
+    update_minmax(point, min_box, max_box);
+  }
+
+  std::cout << "Reading " << face_count << " faces...\n";
+
+  // Read faces
+  for (int i = 0; i < face_count; i++) {
+    if (!std::getline(infile, line)) {
+      std::cerr << "Error: Unexpected end of file while reading faces at face " << i << "\n";
+      break;
+    }
+
+    std::istringstream iss(line);
+    int n;
+    iss >> n;
+
+    if (n >= 3) {
+      int v0, v1, v2;
+      iss >> v0 >> v1 >> v2;
+      // Convert to 0-based indexing (PLY files are typically 0-based already)
+      faceList.push_back(Vec3ui(v0, v1, v2));
+    } else {
+      ++ignored_lines;
+    }
+  }
+
+  // Print min/max coordinates in vertList
+  if (!vertList.empty()) {
+    Vec3f min_vert = vertList[0];
+    Vec3f max_vert = vertList[0];
+    
+    for (const auto& vert : vertList) {
+      for (int i = 0; i < 3; i++) {
+        min_vert[i] = std::min(min_vert[i], vert[i]);
+        max_vert[i] = std::max(max_vert[i], vert[i]);
+      }
+    }
+  }
+
+  infile.close();
+  std::cout << "PLY parsing complete. Read " << vertList.size() << " vertices, " << faceList.size() << " faces.\n";
+}
 
 int main(int argc, char* argv[]) {
   if (argc != 5) {
@@ -51,8 +147,9 @@ int main(int argc, char* argv[]) {
   }
 
   std::string filename(argv[1]);
-  if (filename.size() < 5 || filename.substr(filename.size() - 4) != std::string(".obj")) {
-    std::cerr << "Error: Expected OBJ file with filename of the form <name>.obj.\n";
+  if (filename.size() < 5 || (filename.substr(filename.size() - 4) != std::string(".ply") &&
+                              filename.substr(filename.size() - 4) != std::string(".obj"))) {
+    std::cerr << "Error: Expected PLY or OBJ file with filename of the form <name>.ply or <name>.obj.\n";
     exit(-1);
   }
 
@@ -75,44 +172,50 @@ int main(int argc, char* argv[]) {
 
   std::cout << "Reading data.\n";
 
-  std::ifstream infile(argv[1]);
-  if (!infile) {
-    std::cerr << "Failed to open. Terminating.\n";
-    exit(-1);
-  }
-
   int ignored_lines = 0;
-  std::string line;
   std::vector<Vec3f> vertList;
-  std::vector<int> idList;
+  std::vector<Vec3uc> colorList;
   std::vector<Vec3ui> faceList;
-  while (!infile.eof()) {
-    std::getline(infile, line);
 
-    //.obj files sometimes contain vertex normals indicated by "vn"
-    if (line.substr(0, 1) == std::string("v") && line.substr(0, 2) == std::string("v ")) {
-      std::stringstream data(line);
-      char c;
-      Vec3f point, color;
-      data >> c >> point[0] >> point[1] >> point[2] >> color[0] >> color[1] >> color[2];
-      vertList.push_back(point);
-      idList.push_back(int(color[0] * 255 + 0.5) + int(color[1] * 255 + 0.5) * 256 + int(color[2] * 255 + 0.5) * 256 * 256);
-      update_minmax(point, min_box, max_box);
-    } else if (line.substr(0, 1) == std::string("f")) {
-      std::stringstream data(line);
-      char c;
-      int v0, v1, v2;
-      data >> c >> v0;
-      data.ignore(256, ' ');  // skip texture and normal indices if present
-      data >> v1;
-      data.ignore(256, ' ');
-      data >> v2;
-      faceList.push_back(Vec3ui(v0 - 1, v1 - 1, v2 - 1));
-    } else {
-      ++ignored_lines;
+  bool is_ply = filename.substr(filename.size() - 4) == std::string(".ply");
+  if (is_ply) {
+    parse_ply_file(argv[1], vertList, colorList, faceList, min_box, max_box, ignored_lines);
+  } else {
+    // Original OBJ parsing code
+    std::ifstream infile(argv[1]);
+    if (!infile) {
+      std::cerr << "Failed to open. Terminating.\n";
+      exit(-1);
     }
+
+    std::string line;
+    while (!infile.eof()) {
+      std::getline(infile, line);
+
+      //.obj files sometimes contain vertex normals indicated by "vn"
+      if (line.substr(0, 1) == std::string("v") && line.substr(0, 2) == std::string("v ")) {
+        std::stringstream data(line);
+        char c;
+        Vec3f point, color;
+        data >> c >> point[0] >> point[1] >> point[2] >> color[0] >> color[1] >> color[2];
+        vertList.push_back(point);
+        update_minmax(point, min_box, max_box);
+      } else if (line.substr(0, 1) == std::string("f")) {
+        std::stringstream data(line);
+        char c;
+        int v0, v1, v2;
+        data >> c >> v0;
+        data.ignore(256, ' ');  // skip texture and normal indices if present
+        data >> v1;
+        data.ignore(256, ' ');
+        data >> v2;
+        faceList.push_back(Vec3ui(v0 - 1, v1 - 1, v2 - 1));
+      } else {
+        ++ignored_lines;
+      }
+    }
+    infile.close();
   }
-  infile.close();
 
   if (ignored_lines > 0)
     std::cout << "Warning: " << ignored_lines
@@ -134,8 +237,14 @@ int main(int argc, char* argv[]) {
 
   std::cout << "Computing signed distance field.\n";
   Array3f phi_grid;
-  Array3f theta_grid;
-  make_level_set3(faceList, vertList, idList, min_box, dx, sizes[0], sizes[1], sizes[2], phi_grid, theta_grid);
+
+  // Prepare color collection
+  std::vector<std::array<uint8_t, 3>> active_colors;
+  std::vector<std::array<int, 3>> active_indices;
+  float surface_threshold = dx * 2.0f; // Within 2 voxels of surface
+
+  make_level_set3(faceList, vertList, colorList, min_box, dx, sizes[0], sizes[1], sizes[2], phi_grid,
+                 active_colors, active_indices, surface_threshold);
 
   std::string outname;
 
@@ -182,13 +291,20 @@ int main(int argc, char* argv[]) {
   }
   cnpy::npy_save(outname, &phi_vector[0], {(size_t)phi_grid.nk, (size_t)phi_grid.nj, (size_t)phi_grid.ni}, "w");
 
-  outname = output_path + std::string("_if.npy");
-  std::cout << "Writing if results to: " << outname << "\n";
-  std::vector<float> theta_vector(theta_grid.a.size());
-  for (size_t i = 0; i < theta_grid.a.size(); i++) {
-    theta_vector[i] = theta_grid.a[i];
+  // Export sparse color data (already collected during distance computation)
+  std::string color_data_path = output_path + std::string("_colors.npy");
+  std::string color_indices_path = output_path + std::string("_color_indices.npy");
+
+  std::cout << "Writing color data with " << active_colors.size() << " active voxels\n";
+
+  if (!active_colors.empty()) {
+    cnpy::npy_save(color_data_path, &active_colors[0], {active_colors.size(), 3}, "w");
+    cnpy::npy_save(color_indices_path, &active_indices[0], {active_indices.size(), 3}, "w");
+    std::cout << "Color data saved to: " << color_data_path << "\n";
+    std::cout << "Color indices saved to: " << color_indices_path << "\n";
+  } else {
+    std::cout << "No color data to save (no active voxels found)\n";
   }
-  cnpy::npy_save(outname, &theta_vector[0], {(size_t)theta_grid.nk, (size_t)theta_grid.nj, (size_t)theta_grid.ni}, "w");
 
 #endif
 
