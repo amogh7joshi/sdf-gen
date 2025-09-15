@@ -67,9 +67,12 @@ void parse_ply_file(const char* filename, std::vector<Vec3f>& vertList, std::vec
 
     // Read colors (red, green, blue) and ignore alpha
     Vec3uc color;
-    int alpha;
-    iss >> color[0] >> color[1] >> color[2] >> alpha;
-    
+    int r, g, b, alpha;
+    iss >> r >> g >> b >> alpha;
+    color[0] = static_cast<unsigned char>(r);
+    color[1] = static_cast<unsigned char>(g);
+    color[2] = static_cast<unsigned char>(b);
+      
     // Encode RGB color
     colorList.push_back(color);
     vertList.push_back(point);
@@ -297,9 +300,25 @@ int main(int argc, char* argv[]) {
 
   std::cout << "Writing color data with " << active_colors.size() << " active voxels\n";
 
-  if (!active_colors.empty()) {
-    cnpy::npy_save(color_data_path, &active_colors[0], {active_colors.size(), 3}, "w");
-    cnpy::npy_save(color_indices_path, &active_indices[0], {active_indices.size(), 3}, "w");
+  // Convert format
+  std::vector<uint8_t> color_data_flat;
+  std::vector<int32_t> indices_data_flat;
+
+  for (const auto& color : active_colors) {
+    color_data_flat.push_back(static_cast<uint8_t>(color[0]));
+    color_data_flat.push_back(static_cast<uint8_t>(color[1]));
+    color_data_flat.push_back(static_cast<uint8_t>(color[2]));
+  }
+
+  for (const auto& index : active_indices) {
+    indices_data_flat.push_back(static_cast<int32_t>(index[0]));
+    indices_data_flat.push_back(static_cast<int32_t>(index[1]));
+    indices_data_flat.push_back(static_cast<int32_t>(index[2]));
+  }
+
+  if (!color_data_flat.empty()) {
+    cnpy::npy_save<uint8_t>(color_data_path, &color_data_flat[0], {active_colors.size(), 3}, "w");
+    cnpy::npy_save<int32_t>(color_indices_path, &indices_data_flat[0], {active_indices.size(), 3}, "w");
     std::cout << "Color data saved to: " << color_data_path << "\n";
     std::cout << "Color indices saved to: " << color_indices_path << "\n";
   } else {
