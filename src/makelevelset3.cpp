@@ -244,16 +244,27 @@ void make_level_set3(const std::vector<Vec3ui> &tri, const std::vector<Vec3f> &x
       }
   }
   // and now we fill in the rest of the distances with fast sweeping
+  int sweep_count = 0;
+  int total_sweeps = 16;
   for (unsigned int pass = 0; pass < 2; ++pass) {
+    printf("\rSweeping: %d/%d", ++sweep_count, total_sweeps); fflush(stdout);
     sweep(tri, x, color, phi, closest_tri, origin, dx, +1, +1, +1, active_colors, active_indices, surface_threshold);
+    printf("\rSweeping: %d/%d", ++sweep_count, total_sweeps); fflush(stdout);
     sweep(tri, x, color, phi, closest_tri, origin, dx, -1, -1, -1, active_colors, active_indices, surface_threshold);
+    printf("\rSweeping: %d/%d", ++sweep_count, total_sweeps); fflush(stdout);
     sweep(tri, x, color, phi, closest_tri, origin, dx, +1, +1, -1, active_colors, active_indices, surface_threshold);
+    printf("\rSweeping: %d/%d", ++sweep_count, total_sweeps); fflush(stdout);
     sweep(tri, x, color, phi, closest_tri, origin, dx, -1, -1, +1, active_colors, active_indices, surface_threshold);
+    printf("\rSweeping: %d/%d", ++sweep_count, total_sweeps); fflush(stdout);
     sweep(tri, x, color, phi, closest_tri, origin, dx, +1, -1, +1, active_colors, active_indices, surface_threshold);
+    printf("\rSweeping: %d/%d", ++sweep_count, total_sweeps); fflush(stdout);
     sweep(tri, x, color, phi, closest_tri, origin, dx, -1, +1, -1, active_colors, active_indices, surface_threshold);
+    printf("\rSweeping: %d/%d", ++sweep_count, total_sweeps); fflush(stdout);
     sweep(tri, x, color, phi, closest_tri, origin, dx, +1, -1, -1, active_colors, active_indices, surface_threshold);
+    printf("\rSweeping: %d/%d", ++sweep_count, total_sweeps); fflush(stdout);
     sweep(tri, x, color, phi, closest_tri, origin, dx, -1, +1, +1, active_colors, active_indices, surface_threshold);
   }
+  printf("\n");
   // then figure out signs (inside/outside) from intersection counts
   for (int k = 0; k < nk; ++k)
     for (int j = 0; j < nj; ++j) {
